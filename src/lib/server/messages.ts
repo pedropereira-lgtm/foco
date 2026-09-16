@@ -5,7 +5,8 @@ import type { State, WeekMetrics } from "@/lib/types";
 import { esc } from "./telegram";
 import type { PlatformMonth } from "./stripe";
 
-const app = () => process.env.APP_URL || "";
+/** Só URLs públicas https (o Telegram recusa localhost nos botões). */
+const app = () => (process.env.APP_URL?.startsWith("https://") ? process.env.APP_URL : "");
 
 export function morningDigest(s: State, platform: PlatformMonth | null) {
   const T = todayISO();
@@ -36,8 +37,9 @@ export function morningDigest(s: State, platform: PlatformMonth | null) {
     const y = platform.recv[platform.today - 1] ?? 0;
     if (y > 0) lines.push(`💶 Ontem entraram ${e2(y)} líquidos na plataforma.`);
   }
-  const buttons = [[{ text: "Abrir o Foco", url: app() || "https://t.me" }]];
-  if (focus) buttons.push([{ text: "✅ Marcar a 1.ª como feita", callback_data: `done:${focus.id}` } as never]);
+  const buttons: { text: string; url?: string; callback_data?: string }[][] = [];
+  if (focus) buttons.push([{ text: "✅ Marcar a 1.ª como feita", callback_data: `done:${focus.id}` }]);
+  if (app()) buttons.push([{ text: "Abrir o Foco", url: app() }]);
   return { text: lines.join("\n").trim(), buttons };
 }
 
@@ -90,7 +92,7 @@ export function weeklyMessage(m: WeekMetrics, prev: WeekMetrics | null) {
     for (const p of m.projects.phasesClosed) lines.push(`Fechou: ${esc(p)}`);
   }
   if (m.agenda.meetings) lines.push("", `📅 Reuniões: ${m.agenda.meetings} · ${String(m.agenda.hours).replace(".", ",")}h`);
-  const url = process.env.APP_URL ? `${process.env.APP_URL}/semanas/imprimir?w=${m.week}` : null;
+  const url = app() ? `${app()}/semanas/imprimir?w=${m.week}` : null;
   const buttons = [[...(url ? [{ text: "📄 Ver relatório (PDF)", url }] : []), { text: "📈 Excel", callback_data: `csv:${m.week}` }]];
   return { text: lines.join("\n"), buttons };
 }

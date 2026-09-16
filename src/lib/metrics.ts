@@ -93,7 +93,7 @@ export function computeWeek(s: State, mondayIso: ISODate, platform: PlatformRang
 export const CSV_HEADER = [
   "Semana (segunda)", "Até", "Contactos novos", "Abordagens", "Respostas", "Taxa de resposta %", "Propostas", "Ganhos",
   "Tarefas feitas", "Adiadas", "Minutos em foco", "Follow-ups a tempo", "Follow-ups atrasados",
-  "Plataforma líquido €", "Subscritores novos", "Cancelamentos", "Serviços líquido €", "Total líquido €", "Por receber €",
+  "StudyHub líquido €", "Subscritores novos", "Cancelamentos", "Serviços líquido €", "Total líquido €", "Por receber €",
   "Passos de projeto", "Fases fechadas", "Reuniões", "Horas de reunião",
 ];
 

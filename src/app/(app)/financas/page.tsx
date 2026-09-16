@@ -62,12 +62,12 @@ export default function Financas() {
   const header = (
     <Hero title="Finanças" sub={<>{cap(MO[now.getMonth()])} {now.getFullYear()} · valores líquidos, já sem comissões.</>}>
       {P && <span className="chip live" title={`Atualizado ${new Date(P.updatedAt).toLocaleTimeString("pt-PT")}`}><i />Stripe · ao vivo</span>}
-      <Seg<Tab> options={[["tudo", "Tudo"], ["plataforma", "Plataforma"], ["servicos", "Serviços"]]} value={tab} onChange={(t) => { setTab(t); window.scrollTo({ top: 0 }); }} />
+      <Seg<Tab> options={[["tudo", "Tudo"], ["plataforma", "StudyHub"], ["servicos", "Serviços"]]} value={tab} onChange={(t) => { setTab(t); window.scrollTo({ top: 0 }); }} />
     </Hero>
   );
 
   const stripeNotice = !plat ? null : !plat.configured ? (
-    <section className="glass banner"><p><b>A Stripe ainda não está ligada.</b> Os números da plataforma aparecem quando puseres a chave em Definições.</p><Link className="btn sm" href="/definicoes">Ver como</Link></section>
+    <section className="glass banner"><p><b>A Stripe ainda não está ligada.</b> Os números do StudyHub aparecem quando puseres a chave em Definições.</p><Link className="btn sm" href="/definicoes">Ver como</Link></section>
   ) : "error" in plat ? (
     <section className="glass banner"><p><b>A Stripe respondeu com um erro:</b> {plat.error}</p><button className="btn sm" onClick={() => load(true)}>Tentar outra vez</button></section>
   ) : null;
@@ -129,11 +129,11 @@ function Tudo(props: {
         </section>
         <section className="glass panel">
           <div className="panel-h"><h3>Entradas por dia</h3><button className="linkbtn" onClick={() => props.setTable(!props.table)}>{props.table ? "Ver gráfico" : "Ver tabela"}</button></div>
-          <div className="legend"><span><i className="sw plat" />Plataforma</span><span><i className="sw serv" />Serviços</span><span><i className="sw fut" />Mais claro = ainda vai entrar</span></div>
-          <DailyChart label="Entradas líquidas por dia, plataforma e serviços" series={[{ name: "Plataforma", cls: "plat" }, { name: "Serviços", cls: "serv" }]} days={chartDays} today={today} year={now.getFullYear()} month={now.getMonth()} table={props.table} />
+          <div className="legend"><span><i className="sw plat" />StudyHub</span><span><i className="sw serv" />Serviços</span><span><i className="sw fut" />Mais claro = ainda vai entrar</span></div>
+          <DailyChart label="Entradas líquidas por dia, StudyHub e serviços" series={[{ name: "StudyHub", cls: "plat" }, { name: "Serviços", cls: "serv" }]} days={chartDays} today={today} year={now.getFullYear()} month={now.getMonth()} table={props.table} />
         </section>
         <button className="glass panel src span6" onClick={() => props.setTab("plataforma")}>
-          <div className="src-h"><b><i className="sw plat" />Plataforma</b><Icon name="right" /></div>
+          <div className="src-h"><b><i className="sw plat" />StudyHub</b><Icon name="right" /></div>
           <div className="src-v">{P ? e2(sumArr(P.recv)) : "—"}</div>
           <p className="muted small">{P ? `${P.active} subscritores · mais ${e0(sumArr(P.exp))} até ao fim do mês` : "Stripe por ligar"}</p>
         </button>
@@ -164,7 +164,7 @@ function Plataforma({ P, days, today, now, table, setTable, notice }: { P: Platf
         <section className="glass panel">
           <div className="panel-h"><h3>Renovações por dia</h3><button className="linkbtn" onClick={() => setTable(!table)}>{table ? "Ver gráfico" : "Ver tabela"}</button></div>
           <p className="muted small">Cada subscritor renova num dia certo. As barras mais claras são o que ainda vai entrar este mês.</p>
-          <DailyChart label="Entradas líquidas da plataforma por dia" series={[{ name: "Plataforma", cls: "plat" }]} days={Array.from({ length: days }, (_, i) => ({ d: i + 1, fut: i + 1 > today, a: [P.recv[i + 1] + P.exp[i + 1]] }))} today={today} year={now.getFullYear()} month={now.getMonth()} table={table} />
+          <DailyChart label="Entradas líquidas do StudyHub por dia" series={[{ name: "StudyHub", cls: "plat" }]} days={Array.from({ length: days }, (_, i) => ({ d: i + 1, fut: i + 1 > today, a: [P.recv[i + 1] + P.exp[i + 1]] }))} today={today} year={now.getFullYear()} month={now.getMonth()} table={table} />
         </section>
         <section className="glass panel span4">
           <div className="panel-h"><h3>Próximos 7 dias</h3><span>{e0(P.upcoming.reduce((a, u) => a + u.net, 0))}</span></div>
@@ -185,7 +185,7 @@ function Plataforma({ P, days, today, now, table, setTable, notice }: { P: Platf
           {P.netPerSub ? <p className="goal-msg" style={{ marginTop: 0 }}>Cada subscritor deixa-te <b>{e2(P.netPerSub)}</b> por mês depois da comissão.</p> : <p className="goal-msg" style={{ marginTop: 0 }}>Ainda sem subscrições ativas para calcular.</p>}
           {need ? (
             <>
-              <p className="goal-msg">Para chegares aos <b>{e0(goal)}</b> por mês só com a plataforma precisas de <b>{need} subscritores</b>.</p>
+              <p className="goal-msg">Para chegares aos <b>{e0(goal)}</b> por mês só com o StudyHub precisas de <b>{need} subscritores</b>.</p>
               <div className="meter" role="img" aria-label={`${P.active} de ${need} subscritores`}><i className="m-recv" style={{ width: `${Math.min(100, (P.active / need) * 100)}%` }} /></div>
               <div className="legend"><span><i className="sw recv" />{P.active} agora</span><span>{need > P.active ? `faltam ${need - P.active}` : "meta atingida"}</span></div>
             </>

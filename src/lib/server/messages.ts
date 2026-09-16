@@ -35,7 +35,7 @@ export function morningDigest(s: State, platform: PlatformMonth | null) {
   if (invoices.length) lines.push(`🧾 Hoje há ${invoices.length} ${invoices.length === 1 ? "fatura" : "faturas"} para emitir.`, "");
   if (platform && platform.today > 1) {
     const y = platform.recv[platform.today - 1] ?? 0;
-    if (y > 0) lines.push(`💶 Ontem entraram ${e2(y)} líquidos na plataforma.`);
+    if (y > 0) lines.push(`💶 Ontem entraram ${e2(y)} líquidos no StudyHub.`);
   }
   const buttons: { text: string; url?: string; callback_data?: string }[][] = [];
   if (focus) buttons.push([{ text: "✅ Marcar a 1.ª como feita", callback_data: `done:${focus.id}` }]);
@@ -82,7 +82,7 @@ export function weeklyMessage(m: WeekMetrics, prev: WeekMetrics | null) {
     `Em foco: ${fmtMin(m.tasks.focusMin)}`,
     "",
     "💶 <b>Finanças (líquido)</b>",
-    m.finance.platformNet != null ? `Plataforma  ${e2(m.finance.platformNet)}  (+${m.finance.newSubs} subscritores, −${m.finance.canceledSubs})` : "Plataforma  (Stripe por ligar)",
+    m.finance.platformNet != null ? `StudyHub    ${e2(m.finance.platformNet)}  (+${m.finance.newSubs} subscritores, −${m.finance.canceledSubs})` : "StudyHub    (Stripe por ligar)",
     `Serviços    ${e2(m.finance.servicesNet)}`,
     `<b>Total       ${e2(m.finance.totalNet)}</b>`,
     `Por receber ${e0(m.finance.toReceive)}`,

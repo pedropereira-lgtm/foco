@@ -44,7 +44,7 @@ export function WeekCard({ m, prev, current }: { m: WeekMetrics; prev?: WeekMetr
       </div>
       <div className="eyebrow">Finanças (líquido)</div>
       <div className="metric-grid">
-        <Metric label="Plataforma" value={m.finance.platformNet == null ? "—" : e2(m.finance.platformNet)} now={m.finance.platformNet} before={p?.finance.platformNet} money />
+        <Metric label="StudyHub" value={m.finance.platformNet == null ? "—" : e2(m.finance.platformNet)} now={m.finance.platformNet} before={p?.finance.platformNet} money />
         <Metric label="Subscritores" value={m.finance.newSubs == null ? "—" : `+${m.finance.newSubs} · −${m.finance.canceledSubs}`} />
         <Metric label="Serviços" value={e2(m.finance.servicesNet)} now={m.finance.servicesNet} before={p?.finance.servicesNet} money />
         <Metric label="Total" value={e2(m.finance.totalNet)} now={m.finance.totalNet} before={p?.finance.totalNet} money />

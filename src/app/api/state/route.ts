@@ -22,6 +22,19 @@ export async function POST(req: Request) {
     if (!ALLOWED.has(k)) return NextResponse.json({ error: `Coleção desconhecida: ${k}` }, { status: 400 });
   }
   try {
+    // As definições do servidor (ligação ao Telegram, últimos envios) nunca são
+    // apagadas pelo browser: podia estar com uma versão antiga em memória.
+    if (ops.put?.settings?.length) {
+      const current = (await loadState()).settings;
+      ops.put.settings = ops.put.settings.map((row) => ({
+        ...current,
+        ...(row as Record<string, unknown>),
+        id: "main",
+        telegramChatId: current.telegramChatId,
+        lastDigest: current.lastDigest,
+        lastWeekly: current.lastWeekly,
+      })) as { id: string }[];
+    }
     await applyOps(ops as { put?: Partial<Record<Collection, { id: string }[]>>; del?: Partial<Record<Collection, string[]>> });
     return NextResponse.json({ ok: true });
   } catch (e) {

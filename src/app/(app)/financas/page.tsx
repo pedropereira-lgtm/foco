@@ -3,7 +3,8 @@ import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { foco, useFoco } from "@/lib/store";
 import { updateSettings } from "@/lib/actions";
-import { isLate, netOf, occDate } from "@/lib/logic";
+import { EXPENSE_CATS, expensesOfMonth, expensesTotal, isLate, netOf, occDate } from "@/lib/logic";
+import { addExpense, deleteExpense } from "@/lib/actions";
 import { MO, cap, e0, e2, rel, todayISO } from "@/lib/dates";
 import type { PlatformMonth } from "@/lib/server/stripe";
 import { Icon } from "@/components/icons";
@@ -11,7 +12,7 @@ import { Hero, Seg } from "@/components/ui";
 import { DailyChart, type ChartDay } from "@/components/chart";
 import { PayRow, RecList } from "@/components/sheets";
 
-type Tab = "tudo" | "plataforma" | "servicos";
+type Tab = "tudo" | "plataforma" | "servicos" | "despesas";
 type Plat = PlatformMonth | { configured: false } | { configured: true; error: string } | null;
 
 export default function Financas() {
@@ -62,7 +63,7 @@ export default function Financas() {
   const header = (
     <Hero title="Finanças" sub={<>{cap(MO[now.getMonth()])} {now.getFullYear()} · valores líquidos, já sem comissões.</>}>
       {P && <span className="chip live" title={`Atualizado ${new Date(P.updatedAt).toLocaleTimeString("pt-PT")}`}><i />Stripe · ao vivo</span>}
-      <Seg<Tab> options={[["tudo", "Tudo"], ["plataforma", "StudyHub"], ["servicos", "Serviços"]]} value={tab} onChange={(t) => { setTab(t); window.scrollTo({ top: 0 }); }} />
+      <Seg<Tab> options={[["tudo", "Tudo"], ["plataforma", "StudyHub"], ["servicos", "Serviços"], ["despesas", "Despesas"]]} value={tab} onChange={(t) => { setTab(t); window.scrollTo({ top: 0 }); }} />
     </Hero>
   );
 
@@ -75,16 +76,17 @@ export default function Financas() {
   return (
     <>
       {header}
-      {tab === "tudo" && <Tudo P={P} svcRecv={svcRecv} svcExp={svcExp} svc={svc} svcGross={svcGross} svcFees={svcFees} days={days} today={today} now={now} table={table} setTable={setTable} setTab={setTab} notice={stripeNotice} lateCount={late.length} />}
+      {tab === "tudo" && <Tudo P={P} svcRecv={svcRecv} svcExp={svcExp} svc={svc} svcGross={svcGross} svcFees={svcFees} days={days} today={today} now={now} table={table} setTable={setTable} setTab={setTab} notice={stripeNotice} lateCount={late.length} expenses={expensesTotal(expensesOfMonth(s, ym))} />}
       {tab === "plataforma" && <Plataforma P={P} days={days} today={today} now={now} table={table} setTable={setTable} notice={stripeNotice} />}
       {tab === "servicos" && <Servicos svc={svc} svcFees={svcFees} late={late.length ? late.reduce((a, p) => a + netOf(p.gross, p.method), 0) : 0} lateCount={late.length} />}
+      {tab === "despesas" && <Despesas month={ym} />}
     </>
   );
 }
 
 function Tudo(props: {
   P: PlatformMonth | null; svcRecv: number[]; svcExp: number[]; svc: { recv: number; exp: number }; svcGross: number; svcFees: number;
-  days: number; today: number; now: Date; table: boolean; setTable: (b: boolean) => void; setTab: (t: Tab) => void; notice: React.ReactNode; lateCount: number;
+  days: number; today: number; now: Date; table: boolean; setTable: (b: boolean) => void; setTab: (t: Tab) => void; notice: React.ReactNode; lateCount: number; expenses: number;
 }) {
   const { P, svc, now, days, today } = props;
   const st = foco.s.settings;
@@ -92,7 +94,8 @@ function Tudo(props: {
   const exp = (P ? sumArr(P.exp) : 0) + svc.exp;
   const gross = (P?.gross ?? 0) + props.svcGross;
   const fees = (P?.fees ?? 0) + props.svcFees;
-  const reserve = (recv * st.tax) / 100;
+  const profit = recv - props.expenses;
+  const reserve = (Math.max(0, profit) * st.tax) / 100;
   const close = recv + exp;
   const goal = st.goal;
   const pR = goal ? Math.min(100, (recv / goal) * 100) : 0;
@@ -112,8 +115,10 @@ function Tudo(props: {
           <p className="muted small">Bruto {e2(gross)} · comissões −{e2(fees)}</p>
           <div className="flow">
             <div className="flow-r"><span>Recebido líquido</span><b>{e2(recv)}</b></div>
+            <div className="flow-r"><span>Despesas do mês <button className="linkbtn" onClick={() => props.setTab("despesas")}>ver</button></span><b>−{e2(props.expenses)}</b></div>
+            <div className="flow-r"><span><b style={{ color: "var(--ink)" }}>Lucro</b></span><b>{e2(profit)}</b></div>
             <div className="flow-r"><span>Guardar para impostos <Seg<number> small options={[0, 15, 25, 30].map((t) => [t, `${t}%`] as const)} value={st.tax} onChange={(t) => updateSettings({ tax: t })} /></span><b>−{e2(reserve)}</b></div>
-            <div className="flow-r total"><span>Fica para ti</span><b>{e2(recv - reserve)}</b></div>
+            <div className="flow-r total"><span>Fica para ti</span><b>{e2(profit - reserve)}</b></div>
           </div>
         </section>
         <section className="glass panel span5">
@@ -190,6 +195,81 @@ function Plataforma({ P, days, today, now, table, setTable, notice }: { P: Platf
               <div className="legend"><span><i className="sw recv" />{P.active} agora</span><span>{need > P.active ? `faltam ${need - P.active}` : "meta atingida"}</span></div>
             </>
           ) : <p className="hint">Define a meta mensal no separador Tudo.</p>}
+        </section>
+      </div>
+    </>
+  );
+}
+
+function Despesas({ month }: { month: string }) {
+  const f = useFoco();
+  const list = expensesOfMonth(f.s, month);
+  const total = expensesTotal(list);
+  const fixed = expensesTotal(list.filter((e) => e.fixed));
+  const byCat = EXPENSE_CATS.map((c) => ({ c, v: expensesTotal(list.filter((e) => e.cat === c)) })).filter((x) => x.v > 0).sort((a, b) => b.v - a.v);
+  const [open, setOpen] = useState(false);
+  const [what, setWhat] = useState("");
+  const [amount, setAmount] = useState("");
+  const [cat, setCat] = useState(EXPENSE_CATS[0]);
+  const [date, setDate] = useState(todayISO());
+  const [rep, setRep] = useState<"none" | "monthly">("none");
+  const submit = (ev: React.FormEvent) => {
+    ev.preventDefault();
+    const v = parseFloat(amount);
+    if (!what.trim() || !(v > 0)) return;
+    addExpense({ what: what.trim(), amount: v, cat, date, rep });
+    setWhat("");
+    setAmount("");
+    setRep("none");
+    setOpen(false);
+  };
+  return (
+    <>
+      <div className="tiles">
+        <section className="glass tile"><div className="eyebrow">Despesas este mês</div><div className="tile-v">{e2(total)}</div><p className="muted small">{list.length} {list.length === 1 ? "despesa" : "despesas"}</p></section>
+        <section className="glass tile"><div className="eyebrow">Fixas por mês</div><div className="tile-v">{e2(fixed)}</div><p className="muted small">Contam-se sozinhas todos os meses</p></section>
+        <section className="glass tile"><div className="eyebrow">Maior fatia</div><div className="tile-v">{byCat[0] ? e0(byCat[0].v) : "—"}</div><p className="muted small">{byCat[0]?.c ?? "Ainda sem despesas"}</p></section>
+      </div>
+      <div className="fin-grid">
+        <section className="glass panel span7">
+          <div className="pay-h"><h3 style={{ margin: 0, fontSize: 17 }}>Despesas de {MO[Number(month.slice(5, 7)) - 1]}</h3><button className="btn sm primary" onClick={() => setOpen(!open)}><Icon name="plus" />Nova despesa</button></div>
+          {open && (
+            <form className="ev-fields" onSubmit={submit} style={{ marginTop: 14 }}>
+              <div className="grid2">
+                <label className="lbl" htmlFor="ex-what">O que é<input autoFocus id="ex-what" className="field" value={what} onChange={(e) => setWhat(e.target.value)} placeholder="ex: Supabase" /></label>
+                <label className="lbl" htmlFor="ex-val">Valor (€)<input id="ex-val" className="field" type="number" min={0} step={0.01} value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="25" /></label>
+                <label className="lbl" htmlFor="ex-date">Data<input id="ex-date" className="field sm-field" type="date" value={date} onChange={(e) => setDate(e.target.value)} /></label>
+              </div>
+              <div className="ev-f"><span className="eyebrow">Categoria</span><Seg<string> small options={EXPENSE_CATS.map((c) => [c, c] as const)} value={cat} onChange={setCat} /></div>
+              <div className="ev-f"><span className="eyebrow">Repete</span><Seg options={[["none", "Só desta vez"], ["monthly", "Todos os meses"]] as const} small value={rep} onChange={setRep} /></div>
+              <div className="actions" style={{ marginTop: 4 }}><button className="btn primary sm" type="submit">Guardar</button><button className="btn ghost sm" type="button" onClick={() => setOpen(false)}>Cancelar</button></div>
+            </form>
+          )}
+          <div className="lst sec">
+            {list.length ? list.map((e) => (
+              <div key={e.id + e.on} className="lst-r">
+                <div className="lst-t">{e.what}</div>
+                <div className="lst-s">{cap(rel(e.on))} · {e.cat}{e.fixed ? " · fixa" : ""}</div>
+                <div className="lst-v">
+                  {e.fixed && <span className="chip dot now"><Icon name="repeat" />Mensal</span>}
+                  <span>−{e2(e.amount)}</span>
+                  <button className="btn sm ghost danger" onClick={() => deleteExpense(e.id)}>{e.fixed ? "Terminar" : "Apagar"}</button>
+                </div>
+              </div>
+            )) : <p className="empty">Ainda sem despesas este mês. Começa pelas fixas: alojamento, Supabase, domínios, Adobe…</p>}
+          </div>
+        </section>
+        <section className="glass panel span5">
+          <div className="panel-h"><h3>Por categoria</h3><span>{e2(total)}</span></div>
+          <div className="lst">
+            {byCat.length ? byCat.map((x) => (
+              <div key={x.c} className="lst-r">
+                <div className="lst-t">{x.c}</div>
+                <div className="lst-s"><span className="pbar" style={{ width: 120, display: "inline-block", verticalAlign: "middle" }}><i style={{ width: `${(x.v / total) * 100}%`, background: "var(--c-serv)" }} /></span> {Math.round((x.v / total) * 100)}%</div>
+                <div className="lst-v">{e2(x.v)}</div>
+              </div>
+            )) : <p className="empty">Nada para mostrar.</p>}
+          </div>
         </section>
       </div>
     </>

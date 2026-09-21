@@ -30,3 +30,6 @@ alter table public.foco_weeks     enable row level security;
 
 create table if not exists public.foco_goals (id text primary key, data jsonb not null, updated_at timestamptz not null default now());
 alter table public.foco_goals enable row level security;
+
+create table if not exists public.foco_expenses (id text primary key, data jsonb not null, updated_at timestamptz not null default now());
+alter table public.foco_expenses enable row level security;

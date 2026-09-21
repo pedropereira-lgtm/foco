@@ -1,5 +1,5 @@
 import { addDays, iso, parse, todayISO } from "./dates";
-import { PHASES, eventsOn, netOf } from "./logic";
+import { PHASES, eventsOn, expensesOfMonth, netOf } from "./logic";
 import type { ISODate, State, WeekMetrics } from "./types";
 
 export interface PlatformRange {
@@ -33,6 +33,9 @@ export function computeWeek(s: State, mondayIso: ISODate, platform: PlatformRang
   const paidIn = s.payments.filter((p) => p.status === "pago" && inRange(p.paidAt ? dayOf(p.paidAt) : p.date, from, to));
   const servicesNet = paidIn.reduce((a, p) => a + netOf(p.gross, p.method), 0);
   const toReceive = s.payments.filter((p) => p.status === "previsto").reduce((a, p) => a + netOf(p.gross, p.method), 0);
+
+  const months = [...new Set([from.slice(0, 7), to.slice(0, 7)])];
+  const expenses = months.flatMap((mo) => expensesOfMonth(s, mo)).filter((e) => inRange(e.on, from, to)).reduce((a, e) => a + e.amount, 0);
 
   const stepsDone = s.projects.reduce((a, p) => a + p.steps.filter((x) => x.doneAt && inRange(dayOf(x.doneAt), from, to)).length, 0);
   const phasesClosed: string[] = [];
@@ -84,6 +87,8 @@ export function computeWeek(s: State, mondayIso: ISODate, platform: PlatformRang
       servicesNet: round(servicesNet),
       totalNet: round((platform?.net ?? 0) + servicesNet),
       toReceive: round(toReceive),
+      expenses: round(expenses),
+      profit: round((platform?.net ?? 0) + servicesNet - expenses),
     },
     projects: { stepsDone, phasesClosed },
     agenda: { meetings, hours: Math.round((minutes / 60) * 10) / 10 },
@@ -93,7 +98,7 @@ export function computeWeek(s: State, mondayIso: ISODate, platform: PlatformRang
 export const CSV_HEADER = [
   "Semana (segunda)", "Até", "Contactos novos", "Abordagens", "Respostas", "Taxa de resposta %", "Propostas", "Ganhos",
   "Tarefas feitas", "Adiadas", "Minutos em foco", "Follow-ups a tempo", "Follow-ups atrasados",
-  "StudyHub líquido €", "Subscritores novos", "Cancelamentos", "Serviços líquido €", "Total líquido €", "Por receber €",
+  "StudyHub líquido €", "Subscritores novos", "Cancelamentos", "Serviços líquido €", "Total líquido €", "Despesas €", "Lucro €", "Por receber €",
   "Passos de projeto", "Fases fechadas", "Reuniões", "Horas de reunião",
 ];
 
@@ -102,7 +107,7 @@ export function csvRow(m: WeekMetrics) {
   return [
     m.from, m.to, m.prospecting.newContacts, m.prospecting.outreach, m.prospecting.replies, m.prospecting.replyRate, m.prospecting.proposals, m.prospecting.won,
     m.tasks.done, m.tasks.postponed, m.tasks.focusMin, m.tasks.followupsOnTime, m.tasks.followupsLate,
-    n(m.finance.platformNet), n(m.finance.newSubs), n(m.finance.canceledSubs), n(m.finance.servicesNet), n(m.finance.totalNet), n(m.finance.toReceive),
+    n(m.finance.platformNet), n(m.finance.newSubs), n(m.finance.canceledSubs), n(m.finance.servicesNet), n(m.finance.totalNet), n(m.finance.expenses ?? 0), n(m.finance.profit ?? 0), n(m.finance.toReceive),
     m.projects.stepsDone, `"${m.projects.phasesClosed.join("; ").replace(/"/g, "'")}"`, m.agenda.meetings, n(m.agenda.hours),
   ].join(";");
 }

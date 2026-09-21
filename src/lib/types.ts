@@ -138,6 +138,19 @@ export interface Goal {
   createdAt: string;
 }
 
+/** Despesa. Se rep for "monthly", conta-se sozinha em cada mês a partir de date. */
+export interface Expense {
+  id: string;
+  what: string;
+  amount: number;
+  cat: string;
+  date: ISODate;
+  method?: PayMethod;
+  rep: "none" | "monthly";
+  until?: ISODate | null;
+  createdAt: string;
+}
+
 export interface InboxItem {
   id: string;
   t: string;
@@ -164,7 +177,7 @@ export interface WeekMetrics {
   to: ISODate;
   prospecting: { newContacts: number; outreach: number; replies: number; replyRate: number; proposals: number; won: number };
   tasks: { done: number; postponed: number; focusMin: number; followupsOnTime: number; followupsLate: number };
-  finance: { platformNet: number | null; newSubs: number | null; canceledSubs: number | null; servicesNet: number; totalNet: number; toReceive: number };
+  finance: { platformNet: number | null; newSubs: number | null; canceledSubs: number | null; servicesNet: number; totalNet: number; toReceive: number; expenses?: number; profit?: number };
   projects: { stepsDone: number; phasesClosed: string[] };
   agenda: { meetings: number; hours: number };
 }
@@ -179,10 +192,11 @@ export interface State {
   recurring: Recurring[];
   inbox: InboxItem[];
   goals: Goal[];
+  expenses: Expense[];
   settings: Settings;
 }
 
-export const COLLECTIONS = ["contacts", "deals", "projects", "tasks", "events", "payments", "recurring", "inbox", "goals"] as const;
+export const COLLECTIONS = ["contacts", "deals", "projects", "tasks", "events", "payments", "recurring", "inbox", "goals", "expenses"] as const;
 export type Collection = (typeof COLLECTIONS)[number] | "settings";
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -204,5 +218,6 @@ export const emptyState = (): State => ({
   recurring: [],
   inbox: [],
   goals: [],
+  expenses: [],
   settings: { ...DEFAULT_SETTINGS },
 });

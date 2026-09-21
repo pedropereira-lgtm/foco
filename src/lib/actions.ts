@@ -3,7 +3,7 @@
 import { foco } from "./store";
 import { D, MO, parse, rel, short, stamp, todayISO, uid } from "./dates";
 import { PHASES, SVC, buildSteps, dealOf, missingRecTasks, newContact, newDeal, newTask, occDate, openToday, phaseOf, allDone, stageName, wonOf } from "./logic";
-import type { CalEvent, Contact, Deal, Goal, Note, PayMethod, Payment, Project, Recurring, Stage, Svc, Task } from "./types";
+import type { CalEvent, Contact, Deal, Expense, Goal, Note, PayMethod, Payment, Project, Recurring, Stage, Svc, Task } from "./types";
 
 const S = () => foco.s;
 const T = () => todayISO();
@@ -409,6 +409,25 @@ export function endRecurring(id: string) {
   foco.remove("tasks", S().tasks.filter((t) => t.rec === id && !t.done).map((t) => t.id));
   foco.remove("recurring", id);
   foco.toast("Mensalidade terminada. Já não vais receber tarefas para a faturar.");
+  done();
+}
+
+/* ── despesas ───────────────────────────────────────── */
+export function addExpense(d: { what: string; amount: number; cat: string; date: string; rep: "none" | "monthly" }) {
+  const e: Expense = { id: uid(), what: d.what || "Despesa", amount: d.amount, cat: d.cat, date: d.date, rep: d.rep, createdAt: stamp() };
+  S().expenses.push(e);
+  foco.save("expenses", e);
+  foco.toast(d.rep === "monthly" ? `Despesa fixa criada: ${d.amount} €/mês.` : "Despesa registada.");
+  done();
+}
+export function updateExpense(e: Expense, patch: Partial<Expense>) {
+  Object.assign(e, patch);
+  foco.save("expenses", e);
+  done();
+}
+export function deleteExpense(id: string) {
+  foco.remove("expenses", id);
+  foco.toast("Despesa apagada.");
   done();
 }
 

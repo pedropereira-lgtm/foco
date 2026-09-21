@@ -1,6 +1,6 @@
 /* Regras do Foco partilhadas entre a app (browser) e o servidor (cron, Telegram). Sem DOM. */
 import { D, WD, WDs, addDays, cap, iso, parse, pad, rel, today, todayISO, uid, stamp } from "./dates";
-import type { CalEvent, Contact, Deal, ISODate, PayMethod, Payment, Project, Goal, Recurring, Stage, State, Svc, Task } from "./types";
+import type { CalEvent, Contact, Deal, Expense, ISODate, PayMethod, Payment, Project, Goal, Recurring, Stage, State, Svc, Task } from "./types";
 
 export const PHASES = ["Briefing", "Protótipo", "Desenvolvimento", "Revisão", "Entrega"];
 export const STAGES: { k: Stage; n: string }[] = [
@@ -156,6 +156,27 @@ export function missingRecTasks(s: State): Task[] {
   }
   return out;
 }
+
+/* ── despesas ───────────────────────────────────────── */
+export const EXPENSE_CATS = ["Ferramentas", "Marketing", "Impostos e taxas", "Formação", "Escritório", "Outros"];
+export type ExpenseOcc = Expense & { on: ISODate; fixed: boolean };
+/** Despesas de um mês, já com as fixas mensais incluídas. */
+export function expensesOfMonth(s: State, month: string): ExpenseOcc[] {
+  const [y, m] = month.split("-").map(Number);
+  const last = new Date(y, m, 0).getDate();
+  const out: ExpenseOcc[] = [];
+  for (const e of s.expenses ?? []) {
+    if (e.rep === "monthly") {
+      const start = e.date.slice(0, 7);
+      if (month < start) continue;
+      if (e.until && month > e.until.slice(0, 7)) continue;
+      const day = Math.min(Number(e.date.slice(8)), last);
+      out.push({ ...e, on: `${month}-${pad(day)}`, fixed: true });
+    } else if (e.date.slice(0, 7) === month) out.push({ ...e, on: e.date, fixed: false });
+  }
+  return out.sort((a, b) => (a.on < b.on ? -1 : 1));
+}
+export const expensesTotal = (list: ExpenseOcc[]) => list.reduce((a, e) => a + e.amount, 0);
 
 /* ── objetivos do mês ───────────────────────────────── */
 export const GOAL_CATS = ["Saúde 💪", "Negócio 💼", "Dinheiro 💸", "Mente e foco 🧠", "Marca pessoal 🌍", "Estilo de vida 🧘"];

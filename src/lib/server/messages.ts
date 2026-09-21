@@ -93,7 +93,9 @@ export function weeklyMessage(m: WeekMetrics, prev: WeekMetrics | null) {
     "💶 <b>Finanças (líquido)</b>",
     m.finance.platformNet != null ? `StudyHub    ${e2(m.finance.platformNet)}  (+${m.finance.newSubs} subscritores, −${m.finance.canceledSubs})` : "StudyHub    (Stripe por ligar)",
     `Serviços    ${e2(m.finance.servicesNet)}`,
-    `<b>Total       ${e2(m.finance.totalNet)}</b>`,
+    `Total       ${e2(m.finance.totalNet)}`,
+    `Despesas    −${e2(m.finance.expenses ?? 0)}`,
+    `<b>Lucro       ${e2(m.finance.profit ?? m.finance.totalNet)}</b>`,
     `Por receber ${e0(m.finance.toReceive)}`,
   ];
   if (m.projects.stepsDone || m.projects.phasesClosed.length) {

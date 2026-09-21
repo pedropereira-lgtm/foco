@@ -48,6 +48,8 @@ export function WeekCard({ m, prev, current }: { m: WeekMetrics; prev?: WeekMetr
         <Metric label="Subscritores" value={m.finance.newSubs == null ? "—" : `+${m.finance.newSubs} · −${m.finance.canceledSubs}`} />
         <Metric label="Serviços" value={e2(m.finance.servicesNet)} now={m.finance.servicesNet} before={p?.finance.servicesNet} money />
         <Metric label="Total" value={e2(m.finance.totalNet)} now={m.finance.totalNet} before={p?.finance.totalNet} money />
+        <Metric label="Despesas" value={e2(m.finance.expenses ?? 0)} now={m.finance.expenses ?? 0} before={p?.finance.expenses} money />
+        <Metric label="Lucro" value={e2(m.finance.profit ?? m.finance.totalNet)} now={m.finance.profit ?? null} before={p?.finance.profit} money />
         <Metric label="Por receber" value={e0(m.finance.toReceive)} />
       </div>
       <div className="eyebrow">Projetos e agenda</div>

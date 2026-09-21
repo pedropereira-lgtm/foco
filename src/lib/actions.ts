@@ -3,7 +3,7 @@
 import { foco } from "./store";
 import { D, MO, parse, rel, short, stamp, todayISO, uid } from "./dates";
 import { PHASES, SVC, buildSteps, dealOf, missingRecTasks, newContact, newDeal, newTask, occDate, openToday, phaseOf, allDone, stageName, wonOf } from "./logic";
-import type { CalEvent, Contact, Deal, Note, PayMethod, Payment, Project, Recurring, Stage, Svc, Task } from "./types";
+import type { CalEvent, Contact, Deal, Goal, Note, PayMethod, Payment, Project, Recurring, Stage, Svc, Task } from "./types";
 
 const S = () => foco.s;
 const T = () => todayISO();
@@ -409,6 +409,53 @@ export function endRecurring(id: string) {
   foco.remove("tasks", S().tasks.filter((t) => t.rec === id && !t.done).map((t) => t.id));
   foco.remove("recurring", id);
   foco.toast("Mensalidade terminada. Já não vais receber tarefas para a faturar.");
+  done();
+}
+
+/* ── objetivos do mês ───────────────────────────────── */
+export function addGoal(g: Partial<Goal> & { month: string; cat: string; t: string }) {
+  const goal: Goal = {
+    id: uid(), kind: "check", done: false, order: Date.now(), createdAt: stamp(), ...g,
+  } as Goal;
+  S().goals.push(goal);
+  foco.save("goals", goal);
+  done();
+  return goal;
+}
+export function updateGoal(g: Goal, patch: Partial<Goal>) {
+  Object.assign(g, patch);
+  foco.save("goals", g);
+  done();
+}
+export function toggleGoal(g: Goal) {
+  g.done = !g.done;
+  g.doneAt = g.done ? stamp() : undefined;
+  foco.save("goals", g);
+  if (g.done) foco.toast("Objetivo riscado. Boa.");
+  done();
+}
+export function bumpGoal(g: Goal, n: number) {
+  g.count = Math.max(0, (g.count ?? 0) + n);
+  if (g.target && g.count >= g.target && !g.done) {
+    g.done = true;
+    g.doneAt = stamp();
+    foco.toast(`${g.t}: meta atingida 🎯`);
+  }
+  foco.save("goals", g);
+  done();
+}
+export function deleteGoal(id: string) {
+  foco.remove("goals", id);
+  done();
+}
+/** Copia os objetivos de um mês para outro (sem os contadores). */
+export function copyGoals(from: string, to: string) {
+  const src = S().goals.filter((g) => g.month === from);
+  if (!src.length) return foco.toast("Esse mês não tem objetivos para copiar.");
+  const copies = src.map((g) => ({ ...g, id: uid(), month: to, done: false, doneAt: undefined, count: 0, createdAt: stamp() }));
+  S().goals.push(...copies);
+  foco.save("goals", copies);
+  foco.toast(`${copies.length} objetivos copiados.`);
   done();
 }
 

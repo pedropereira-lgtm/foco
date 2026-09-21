@@ -2,7 +2,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { foco, useFoco, type SheetState } from "@/lib/store";
 import * as A from "@/lib/actions";
-import { DURS, DUE_PRESETS, METHODS, ORIGINS, PHASES, REPS, STAGES, SVC, TPL, WEEK_ORDER, WHEN_PRESETS, allDone, dealOf, eventsOn, initials, isRec, netOf, nextFollow, occDate, parseEvent, parseTaskText, paysOf, phaseOf, repText, statusOf, wonOf } from "@/lib/logic";
+import { AUTO_LABEL, DURS, DUE_PRESETS, GOAL_CATS, METHODS, ORIGINS, PHASES, REPS, STAGES, SVC, TPL, WEEK_ORDER, WHEN_PRESETS, allDone, dealOf, eventsOn, initials, isRec, netOf, nextFollow, occDate, parseEvent, parseTaskText, paysOf, phaseOf, repText, statusOf, wonOf } from "@/lib/logic";
 import { D, MO, WD, WDs, cap, diff, e0, e2, endTime, parse, rel, short, todayISO } from "@/lib/dates";
 import type { CalEvent, Contact, PayMethod, Payment, Project, Svc } from "@/lib/types";
 import { Icon } from "./icons";
@@ -37,6 +37,7 @@ function SheetBody({ sh }: { sh: SheetState }) {
     case "newProject": return <NewProjectSheet sh={sh} />;
     case "day": return <DaySheet date={sh.date} />;
     case "schedule": return <ScheduleSheet key={sh.id} id={sh.id} />;
+    case "goal": return <GoalSheet key={sh.id} id={sh.id} />;
     case "event": return <EventSheet key={sh.id ?? "new"} sh={sh} />;
     case "payment": return <PaymentSheet contact={sh.contact ?? null} back={!!sh.back} />;
     case "recurring": return <RecurringSheet contact={sh.contact ?? null} back={!!sh.back} />;
@@ -422,6 +423,48 @@ function ScheduleSheet({ id }: { id: string }) {
           <button className="btn ghost" type="button" onClick={() => foco.close()}>Cancelar</button>
         </div>
       </form>
+    </>
+  );
+}
+
+/* ── Objetivo do mês ────────────────────────────────── */
+const AUTOS: [string, string][] = [["", "Conto eu"], ["propostas", "Propostas enviadas"], ["reunioes", "Reuniões"], ["clientes", "Clientes fechados"], ["servicos", "Faturação de serviços"]];
+function GoalSheet({ id }: { id: string }) {
+  const f = useFoco();
+  const g = f.s.goals.find((x) => x.id === id);
+  const [arm, setArm] = useState(false);
+  if (!g) return <p className="empty">Este objetivo já não existe.</p>;
+  return (
+    <>
+      <div className="eyebrow">Objetivo · {g.cat}</div>
+      <h3>{g.t}</h3>
+      <div className="sec grid2">
+        <label className="lbl" htmlFor="g-t">Objetivo<input id="g-t" className="field" defaultValue={g.t} onChange={(e) => A.updateGoal(g, { t: e.target.value })} /></label>
+        <label className="lbl" htmlFor="g-cat">Área
+          <select id="g-cat" className="field" defaultValue={g.cat} onChange={(e) => A.updateGoal(g, { cat: e.target.value })}>
+            {[...new Set([...GOAL_CATS, g.cat])].map((c) => <option key={c} value={c}>{c}</option>)}
+          </select>
+        </label>
+      </div>
+      <div className="sec"><div className="eyebrow">Como medes</div>
+        <Seg options={[["check", "Sim ou não"], ["count", "Contagem"]] as const} value={g.kind} onChange={(k) => A.updateGoal(g, { kind: k })} />
+      </div>
+      {g.kind === "count" && (
+        <>
+          <div className="sec grid2">
+            <label className="lbl" htmlFor="g-target">Meta (quantos)<input id="g-target" className="field" type="number" min={0} defaultValue={g.target ?? ""} placeholder="ex: 12" onChange={(e) => A.updateGoal(g, { target: parseFloat(e.target.value) || 0 })} /></label>
+            <label className="lbl" htmlFor="g-unit">Unidade<input id="g-unit" className="field" defaultValue={g.unit ?? ""} placeholder="ex: posts, dias, €" onChange={(e) => A.updateGoal(g, { unit: e.target.value })} /></label>
+          </div>
+          <div className="sec"><div className="eyebrow">Quem conta</div>
+            <Seg options={AUTOS} value={g.auto ?? ""} onChange={(a) => A.updateGoal(g, { auto: (a || undefined) as typeof g.auto })} />
+            <p className="hint">{g.auto ? cap(AUTO_LABEL[g.auto]) : "Carregas no + sempre que fizeres mais um."}</p>
+          </div>
+        </>
+      )}
+      <div className="actions">
+        <button className="btn primary" onClick={() => foco.close()}>Pronto</button>
+        <button className="btn ghost danger" onClick={() => (arm ? (A.deleteGoal(g.id), foco.close()) : setArm(true))}>{arm ? "Carrega outra vez para apagar" : "Apagar objetivo"}</button>
+      </div>
     </>
   );
 }

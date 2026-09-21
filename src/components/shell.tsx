@@ -15,6 +15,7 @@ const NAV = [
   ["/projetos", "Projetos", "layers"],
   ["/calendario", "Calendário", "calendar"],
   ["/financas", "Finanças", "wallet"],
+  ["/objetivos", "Objetivos", "flag"],
   ["/semanas", "Semanas", "chart"],
 ] as const;
 

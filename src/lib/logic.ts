@@ -1,6 +1,6 @@
 /* Regras do Foco partilhadas entre a app (browser) e o servidor (cron, Telegram). Sem DOM. */
 import { D, WD, WDs, addDays, cap, iso, parse, pad, rel, today, todayISO, uid, stamp } from "./dates";
-import type { CalEvent, Contact, Deal, ISODate, PayMethod, Payment, Project, Recurring, Stage, State, Svc, Task } from "./types";
+import type { CalEvent, Contact, Deal, ISODate, PayMethod, Payment, Project, Goal, Recurring, Stage, State, Svc, Task } from "./types";
 
 export const PHASES = ["Briefing", "Protótipo", "Desenvolvimento", "Revisão", "Entrega"];
 export const STAGES: { k: Stage; n: string }[] = [
@@ -155,6 +155,48 @@ export function missingRecTasks(s: State): Task[] {
     out.push(newTask(`Emitir fatura: ${r.what}`, occDate(r, r.issued), { lead: r.contact, rec: r.id, k: r.issued, min: 10 }));
   }
   return out;
+}
+
+/* ── objetivos do mês ───────────────────────────────── */
+export const GOAL_CATS = ["Saúde 💪", "Negócio 💼", "Dinheiro 💸", "Mente e foco 🧠", "Marca pessoal 🌍", "Estilo de vida 🧘"];
+export const AUTO_LABEL: Record<NonNullable<Goal["auto"]>, string> = {
+  propostas: "conta as propostas enviadas na Pipeline",
+  reunioes: "conta as reuniões de trabalho no Calendário",
+  clientes: "conta os negócios ganhos na Pipeline",
+  servicos: "conta o que recebeste em Serviços (Finanças)",
+};
+export const monthOf = (d: ISODate) => d.slice(0, 7);
+export const thisMonth = () => monthOf(todayISO());
+export const monthShift = (m: string, n: number) => {
+  const [y, mo] = m.split("-").map(Number);
+  const d = new Date(y, mo - 1 + n, 1);
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}`;
+};
+/** Valor atual de um objetivo que se conta sozinho. */
+export function autoValue(s: State, auto: NonNullable<Goal["auto"]>, month: string) {
+  const inMonth = (iso8601: string) => iso8601.slice(0, 7) === month;
+  const hist = (stage: Stage) => s.deals.flatMap((d) => (d.history ?? []).filter((h) => h.stage === stage && inMonth(h.at))).length;
+  if (auto === "propostas") return hist("proposta");
+  if (auto === "clientes") return hist("ganho");
+  if (auto === "servicos") return Math.round(s.payments.filter((p) => p.status === "pago" && monthOf(p.paidAt?.slice(0, 10) ?? p.date) === month).reduce((a, p) => a + netOf(p.gross, p.method), 0));
+  // reuniões: ocorrências de eventos de trabalho no mês, até hoje
+  const [y, mo] = month.split("-").map(Number);
+  const last = new Date(y, mo, 0).getDate();
+  let n = 0;
+  for (let i = 1; i <= last; i++) {
+    const k = `${month}-${pad(i)}`;
+    if (k > todayISO()) break;
+    n += eventsOn(s, k).filter((e) => e.cat === "trabalho").length;
+  }
+  return n;
+}
+export function goalValue(s: State, g: Goal) {
+  return g.auto ? autoValue(s, g.auto, g.month) : (g.count ?? 0);
+}
+export function goalDone(s: State, g: Goal) {
+  if (g.kind === "check") return g.done;
+  const target = g.target ?? 0;
+  return g.done || (target > 0 && goalValue(s, g) >= target);
 }
 
 /* ── eventos ────────────────────────────────────────── */

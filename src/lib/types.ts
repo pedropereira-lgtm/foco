@@ -121,6 +121,23 @@ export interface Recurring {
   createdAt: string;
 }
 
+/** Objetivo de um mês (YYYY-MM). Pode ser sim/não, um contador, ou contar-se sozinho. */
+export interface Goal {
+  id: string;
+  month: string;
+  cat: string;
+  t: string;
+  kind: "check" | "count";
+  target?: number;
+  unit?: string;
+  auto?: "propostas" | "reunioes" | "clientes" | "servicos";
+  count?: number;
+  done: boolean;
+  doneAt?: string;
+  order: number;
+  createdAt: string;
+}
+
 export interface InboxItem {
   id: string;
   t: string;
@@ -161,10 +178,11 @@ export interface State {
   payments: Payment[];
   recurring: Recurring[];
   inbox: InboxItem[];
+  goals: Goal[];
   settings: Settings;
 }
 
-export const COLLECTIONS = ["contacts", "deals", "projects", "tasks", "events", "payments", "recurring", "inbox"] as const;
+export const COLLECTIONS = ["contacts", "deals", "projects", "tasks", "events", "payments", "recurring", "inbox", "goals"] as const;
 export type Collection = (typeof COLLECTIONS)[number] | "settings";
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -185,5 +203,6 @@ export const emptyState = (): State => ({
   payments: [],
   recurring: [],
   inbox: [],
+  goals: [],
   settings: { ...DEFAULT_SETTINGS },
 });

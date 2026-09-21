@@ -27,3 +27,6 @@ alter table public.foco_recurring enable row level security;
 alter table public.foco_inbox     enable row level security;
 alter table public.foco_settings  enable row level security;
 alter table public.foco_weeks     enable row level security;
+
+create table if not exists public.foco_goals (id text primary key, data jsonb not null, updated_at timestamptz not null default now());
+alter table public.foco_goals enable row level security;

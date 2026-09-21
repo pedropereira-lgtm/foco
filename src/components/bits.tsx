@@ -3,7 +3,7 @@ import { useState } from "react";
 import { foco } from "@/lib/store";
 import { addNote, completeTask, deleteNote, promoteTask, setSummary, uncompleteTask } from "@/lib/actions";
 import { VIAS } from "@/lib/logic";
-import { cap, diff, e0, rel, todayISO } from "@/lib/dates";
+import { cap, diff, e0, rel, short, todayISO } from "@/lib/dates";
 import type { Note, Task } from "@/lib/types";
 import { Icon } from "./icons";
 import { Check, Mini, Seg } from "./ui";
@@ -30,6 +30,14 @@ export function TaskChips({ t }: { t: Task }) {
         </button>,
       );
   }
+  if (t.due && !t.done) {
+    const n = diff(t.due);
+    out.push(
+      <span key="due" className={`chip dot ${n < 0 ? "late" : n <= 2 ? "follow" : ""}`} title={`Prazo: ${cap(rel(t.due))}`}>
+        {n < 0 ? `Prazo passou ${rel(t.due)}` : n === 0 ? "Prazo é hoje" : n === 1 ? "Prazo é amanhã" : `Prazo ${short(t.due)} · faltam ${n} dias`}
+      </span>,
+    );
+  }
   if (t.min <= 5) out.push(<span key="q" className="chip dot quick">Rápida</span>);
   return <>{out}</>;
 }
@@ -49,6 +57,7 @@ export function TaskRow({ t, promote = true }: { t: Task; promote?: boolean }) {
         <div className="row-s"><TaskChips t={t} /></div>
       </div>
       <span className="row-min">{t.min} min</span>
+      {!t.done && <Mini icon="calendar" title="Adiar ou pôr prazo" onClick={() => foco.open({ kind: "schedule", id: t.id })} />}
       {!t.done && promote && <Mini icon="up" title="Pôr em foco" onClick={() => { promoteTask(t.id); window.scrollTo({ top: 0, behavior: "smooth" }); }} />}
     </div>
   );

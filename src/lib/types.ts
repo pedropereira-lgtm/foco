@@ -63,7 +63,8 @@ export interface Task {
   id: string;
   t: string;
   min: number;
-  date: ISODate;
+  date: ISODate; // dia em que aparece para fazer
+  due?: ISODate; // prazo (data limite), opcional
   done: boolean;
   doneAt?: string;
   proj?: string;

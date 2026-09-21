@@ -186,6 +186,7 @@ function FocusCard({ t }: { t?: Task }) {
         <button className="btn primary" onClick={() => { started.current = Date.now(); setTimer({ left: t.min * 60, total: t.min * 60, running: true }); }}><Icon name="play" />Começar foco</button>
         <button className="btn" onClick={() => completeTask(t.id)}><Icon name="check" />Feito</button>
         <button className="btn ghost" onClick={() => snoozeTask(t.id)}><Icon name="moon" />Fica para amanhã</button>
+        <button className="btn ghost" onClick={() => foco.open({ kind: "schedule", id: t.id })}><Icon name="calendar" />Outro dia</button>
       </div>
     </section>
   );

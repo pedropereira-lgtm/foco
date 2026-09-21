@@ -1,5 +1,5 @@
 import "server-only";
-import { D, MOs, WD, cap, e0, e2, fmtMin, parse, short, toMin, lisbonNow, todayISO } from "@/lib/dates";
+import { D, MOs, WD, cap, diff, e0, e2, fmtMin, parse, rel, short, toMin, lisbonNow, todayISO } from "@/lib/dates";
 import { eventsOn, isLate, netOf, openToday, payName } from "@/lib/logic";
 import type { State, WeekMetrics } from "@/lib/types";
 import { esc } from "./telegram";
@@ -7,6 +7,15 @@ import type { PlatformMonth } from "./stripe";
 
 /** Só URLs públicas https (o Telegram recusa localhost nos botões). */
 const app = () => (process.env.APP_URL?.startsWith("https://") ? process.env.APP_URL : "");
+
+/** " ⏳ prazo amanhã" quando o prazo está a chegar (ou já passou). */
+function dueMark(due?: string) {
+  if (!due) return "";
+  const n = diff(due);
+  if (n < 0) return ` ⏳ <b>prazo passou ${rel(due)}</b>`;
+  if (n <= 3) return ` ⏳ prazo ${rel(due)}`;
+  return "";
+}
 
 export function morningDigest(s: State, platform: PlatformMonth | null) {
   const T = todayISO();
@@ -17,11 +26,11 @@ export function morningDigest(s: State, platform: PlatformMonth | null) {
   const lines: string[] = [`<b>Foco · ${cap(WD[d.getDay()])}, ${d.getDate()} ${MOs[d.getMonth()]}</b>`, ""];
   if (focus) {
     const proj = focus.proj ? s.projects.find((p) => p.id === focus.proj)?.name : null;
-    lines.push("🎯 <b>Em foco hoje</b>", `${esc(focus.t)}${proj ? ` (${esc(proj)})` : ""} · ${focus.min} min`, "");
+    lines.push("🎯 <b>Em foco hoje</b>", `${esc(focus.t)}${proj ? ` (${esc(proj)})` : ""} · ${focus.min} min${dueMark(focus.due)}`, "");
   } else lines.push("🎯 Nada pendente para hoje. Aproveita.", "");
   if (rest.length) {
     lines.push(`📋 <b>Depois disso (${open.length - 1})</b>`);
-    for (const t of rest) lines.push(`• ${esc(t.t)} · ${t.min} min${t.date < T ? " ⚠️" : ""}`);
+    for (const t of rest) lines.push(`• ${esc(t.t)} · ${t.min} min${t.date < T ? " ⚠️" : ""}${dueMark(t.due)}`);
     if (open.length - 1 > rest.length) lines.push(`• e mais ${open.length - 1 - rest.length}`);
     lines.push("");
   }

@@ -55,7 +55,84 @@ export const newTask = (t: string, date: ISODate, extra: Partial<Task> = {}): Ta
   id: uid(), t, min: 15, date, done: false, createdAt: stamp(), ...extra,
 });
 export const openToday = (s: State) =>
-  s.tasks.filter((t) => !t.done && t.date <= todayISO()).sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+  s.tasks
+    .filter((t) => !t.done && t.date <= todayISO())
+    .sort((a, b) => (a.order ?? 0) - (b.order ?? 0) || (a.due ?? "9999").localeCompare(b.due ?? "9999"));
+
+/* ── quando fazer / prazo ───────────────────────────── */
+export const nextWeekday = (dow: number) => {
+  let i = 1;
+  while (addDays(today(), i).getDay() !== dow) i++;
+  return D(i);
+};
+/** Presets de "fazer em" e de prazo, usados no Capturar e no Adiar. */
+export const WHEN_PRESETS = (): [ISODate, string][] => [
+  [todayISO(), "Hoje"],
+  [D(1), "Amanhã"],
+  [D(2), "Depois de amanhã"],
+  [nextWeekday(1), "Próxima segunda"],
+  [D(7), "Daqui a 1 semana"],
+];
+export const DUE_PRESETS = (): [string, string][] => [
+  ["", "Sem prazo"],
+  [D(7), "1 semana"],
+  [D(14), "2 semanas"],
+  [D(30), "1 mês"],
+];
+const DAYWORDS: Record<string, number> = { domingo: 0, segunda: 1, "terça": 2, terca: 2, quarta: 3, quinta: 4, sexta: 5, "sábado": 6, sabado: 6 };
+/** Lê uma expressão de data em português e devolve a data e o texto que sobra. */
+function readDate(s: string): { date?: ISODate; rest: string } {
+  const take = (re: RegExp, fn: (m: RegExpMatchArray) => ISODate | undefined) => {
+    const m = s.match(re);
+    if (!m) return false;
+    const d = fn(m);
+    if (!d) return false;
+    s = s.replace(m[0], " ");
+    out = d;
+    return true;
+  };
+  let out: ISODate | undefined;
+  const unit = (n: number, u: string) => (/^m[eê]s/.test(u) ? D(n * 30) : /^semana/.test(u) ? D(n * 7) : D(n));
+  // \b não funciona ao lado de letras acentuadas (amanhã, terça, mês) — daí os lookarounds
+  const A = "(?<![A-Za-zÀ-ÿ])";
+  const Z = "(?![A-Za-zÀ-ÿ])";
+  const re = (body: string) => new RegExp(A + body + Z, "i");
+  take(re("(?:daqui a|dentro de|em)\\s+(\\d{1,3})\\s+(dias?|semanas?|m[eê]s|meses)"), (m) => unit(+m[1], m[2].toLowerCase())) ||
+    take(re("depois de amanh[ãa]"), () => D(2)) ||
+    take(re("amanh[ãa]"), () => D(1)) ||
+    take(re("hoje"), () => todayISO()) ||
+    take(re("(?:pr[óo]xima\\s+|na\\s+)?(domingo|segunda|ter[çc]a|quarta|quinta|sexta|s[áa]bado)(?:-feira)?"), (m) => nextWeekday(DAYWORDS[m[1].toLowerCase()] ?? 1)) ||
+    take(re("pr[óo]xima semana"), () => D(7)) ||
+    take(re("(\\d{1,3})\\s*(dias?|semanas?|m[eê]s|meses)"), (m) => unit(+m[1], m[2].toLowerCase())) ||
+    take(/\bdia\s+(\d{1,2})\b/i, (m) => {
+      const n = +m[1];
+      if (n < 1 || n > 31) return undefined;
+      const t = today();
+      const d = new Date(t.getFullYear(), t.getMonth() + (n < t.getDate() ? 1 : 0), n);
+      return iso(d);
+    }) ||
+    take(/\b(\d{1,2})[/-](\d{1,2})(?:[/-](\d{2,4}))?\b/, (m) => {
+      const y = m[3] ? (m[3].length === 2 ? 2000 + +m[3] : +m[3]) : today().getFullYear();
+      return iso(new Date(y, +m[2] - 1, +m[1]));
+    });
+  return { date: out, rest: s };
+}
+/** "enviar proposta até sexta" / "rever site daqui a 2 semanas" → data, prazo e título limpo. */
+export function parseTaskText(txt: string) {
+  let s = ` ${txt} `;
+  let due: ISODate | undefined;
+  const dueMatch = s.match(/\b(?:prazo(?:\s+de|\s+at[ée])?|at[ée]|limite)\s+(.{2,30}?)(?=[,.]|$)/i);
+  if (dueMatch) {
+    const r = readDate(dueMatch[1]);
+    if (r.date) {
+      due = r.date;
+      s = s.replace(dueMatch[0], " " + r.rest);
+    }
+  }
+  const r = readDate(s);
+  const title = r.rest.replace(/\s+(para|a|no|na|em|de)\s*$/i, " ").replace(/[\s,]+/g, " ").trim();
+  return { date: r.date, due, title: cap(title) };
+}
 
 /* ── dinheiro ───────────────────────────────────────── */
 /** Estimativa da comissão Stripe para pagamentos registados à mão (UE, cartão standard). */

@@ -2,7 +2,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { foco, useFoco, type SheetState } from "@/lib/store";
 import * as A from "@/lib/actions";
-import { DURS, METHODS, ORIGINS, PHASES, REPS, STAGES, SVC, TPL, WEEK_ORDER, allDone, dealOf, eventsOn, initials, isRec, netOf, nextFollow, occDate, parseEvent, paysOf, phaseOf, repText, statusOf, wonOf } from "@/lib/logic";
+import { DURS, DUE_PRESETS, METHODS, ORIGINS, PHASES, REPS, STAGES, SVC, TPL, WEEK_ORDER, WHEN_PRESETS, allDone, dealOf, eventsOn, initials, isRec, netOf, nextFollow, occDate, parseEvent, parseTaskText, paysOf, phaseOf, repText, statusOf, wonOf } from "@/lib/logic";
 import { D, MO, WD, WDs, cap, diff, e0, e2, endTime, parse, rel, short, todayISO } from "@/lib/dates";
 import type { CalEvent, Contact, PayMethod, Payment, Project, Svc } from "@/lib/types";
 import { Icon } from "./icons";
@@ -36,6 +36,7 @@ function SheetBody({ sh }: { sh: SheetState }) {
     case "project": return <ProjectSheet key={sh.id} id={sh.id} tab={sh.tab} />;
     case "newProject": return <NewProjectSheet sh={sh} />;
     case "day": return <DaySheet date={sh.date} />;
+    case "schedule": return <ScheduleSheet key={sh.id} id={sh.id} />;
     case "event": return <EventSheet key={sh.id ?? "new"} sh={sh} />;
     case "payment": return <PaymentSheet contact={sh.contact ?? null} back={!!sh.back} />;
     case "recurring": return <RecurringSheet contact={sh.contact ?? null} back={!!sh.back} />;
@@ -47,7 +48,7 @@ const CAP_TYPES = [["mente", "Mente"], ["tarefa", "Tarefa"], ["evento", "Evento"
 type CapType = (typeof CAP_TYPES)[number][0];
 const HINTS: Record<CapType, string> = {
   mente: "Fica na Mente, no ecrã Agora. Arrumas quando tiveres cabeça para isso.",
-  tarefa: "Entra na lista de hoje. Se escreveres “amanhã”, fica para amanhã.",
+  tarefa: "Escreve como falas: “rever site daqui a 2 semanas” ou “enviar proposta até sexta”. Depois confirma aqui em baixo.",
   evento: "Escreve como falas: “treino seg qua sex 19h” ou “chamada Ricardo amanhã às 10h30”.",
   contacto: "Fica guardado em Contactos. Quando quiseres falar com a pessoa, carrega em “Quero contactar”.",
   projeto: "Abre a ficha do projeto, com os passos já prontos.",
@@ -56,7 +57,11 @@ const HINTS: Record<CapType, string> = {
 function CaptureSheet({ initialType }: { initialType?: string }) {
   const [type, setType] = useState<CapType>((initialType as CapType) || "mente");
   const [v, setV] = useState("");
+  const [when, setWhen] = useState<{ date: string; due: string } | null>(null);
   const parsed = useMemo(() => (type === "evento" && v.trim() ? parseEvent(v) : null), [type, v]);
+  const task = useMemo(() => (type === "tarefa" ? parseTaskText(v) : null), [type, v]);
+  const date = when?.date ?? task?.date ?? todayISO();
+  const due = when?.due ?? task?.due ?? "";
 
   const save = () => {
     const text = v.trim();
@@ -74,9 +79,9 @@ function CaptureSheet({ initialType }: { initialType?: string }) {
       return;
     }
     if (type === "tarefa") {
-      const tm = /amanh[ãa]/i.test(text);
-      A.addTask(text, tm ? D(1) : todayISO());
-      foco.toast(tm ? "Tarefa guardada para amanhã." : "Tarefa adicionada a hoje.");
+      const title = task?.title || text;
+      A.addTask(title, date, due ? { due } : {});
+      foco.toast(`${date === todayISO() ? "Tarefa adicionada a hoje" : `Tarefa guardada para ${rel(date)}`}${due ? `, com prazo ${rel(due)}` : "."}`);
     } else {
       A.addInbox(text);
       foco.toast("Guardado na Mente.");
@@ -90,8 +95,9 @@ function CaptureSheet({ initialType }: { initialType?: string }) {
       <p className="muted">Escreve e carrega Enter. Não precisas de decidir já onde fica.</p>
       <form onSubmit={(e) => { e.preventDefault(); save(); }}>
         <div className="sec"><input data-autofocus className="field lg" value={v} onChange={(e) => setV(e.target.value)} placeholder="ex: ligar à Marta amanhã" autoComplete="off" aria-label="O que tens na cabeça" /></div>
-        <Seg options={CAP_TYPES} value={type} onChange={setType} label="Tipo" />
+        <Seg options={CAP_TYPES} value={type} onChange={(t) => { setType(t); setWhen(null); }} label="Tipo" />
         <p className="hint">{HINTS[type]}</p>
+        {type === "tarefa" && <WhenFields date={date} due={due} setDate={(d) => setWhen({ date: d, due })} setDue={(d) => setWhen({ date, due: d })} />}
         {parsed && (
           <p className="ev-sum"><Icon name={parsed.rep ? "repeat" : "calendar"} /><span>{parsed.title || "Evento"} · {parsed.rep ? repText({ rep: parsed.rep, days: parsed.days ?? [], date: parsed.date ?? todayISO() }) : cap(rel(parsed.date ?? todayISO()))} · {parsed.time ?? "falta a hora"}</span></p>
         )}
@@ -364,6 +370,58 @@ function DaySheet({ date }: { date: string }) {
         <button className="btn" onClick={() => foco.open({ kind: "event", date })}><Icon name="calendar" />Novo evento</button>
         <button className="btn ghost" onClick={() => foco.close()}>Fechar</button>
       </div>
+    </>
+  );
+}
+
+/* ── Quando fazer / prazo ───────────────────────────── */
+function WhenFields({ date, due, setDate, setDue }: { date: string; due: string; setDate: (v: string) => void; setDue: (v: string) => void }) {
+  const dueN = due ? diff(due) : null;
+  return (
+    <div className="ev-fields">
+      <div className="ev-f"><span className="eyebrow">Fazer em</span>
+        <div className="ev-row">
+          <Seg<string> small options={WHEN_PRESETS()} value={date} onChange={setDate} />
+          <input type="date" className="field sm-field" value={date} onChange={(e) => e.target.value && setDate(e.target.value)} aria-label="Dia" />
+        </div>
+      </div>
+      <div className="ev-f"><span className="eyebrow">Prazo (data limite)</span>
+        <div className="ev-row">
+          <Seg<string> small options={DUE_PRESETS()} value={DUE_PRESETS().some(([k]) => k === due) ? due : "outro"} onChange={setDue} />
+          <input type="date" className="field sm-field" value={due} onChange={(e) => setDue(e.target.value)} aria-label="Prazo" />
+        </div>
+      </div>
+      <p className="ev-sum"><Icon name="clock" /><span>
+        Fazes {rel(date)}{due ? ` · prazo ${rel(due)}${dueN != null && dueN >= 0 ? ` (${dueN} ${dueN === 1 ? "dia" : "dias"})` : ""}` : " · sem prazo"}
+        {due && date > due ? " ⚠️ depois do prazo" : ""}
+      </span></p>
+    </div>
+  );
+}
+
+function ScheduleSheet({ id }: { id: string }) {
+  const f = useFoco();
+  const t = f.s.tasks.find((x) => x.id === id);
+  const [date, setDate] = useState(t?.date ?? todayISO());
+  const [due, setDue] = useState(t?.due ?? "");
+  if (!t) return <p className="empty">Esta tarefa já não existe.</p>;
+  const save = () => {
+    A.rescheduleTask(t.id, date);
+    A.setTaskDue(t.id, due || null);
+    foco.close();
+  };
+  return (
+    <>
+      <div className="eyebrow">Tarefa</div>
+      <h3>{t.t}</h3>
+      <form onSubmit={(e) => { e.preventDefault(); save(); }}>
+        <WhenFields date={date} due={due} setDate={setDate} setDue={setDue} />
+        <div className="actions">
+          <button className="btn primary" type="submit">Guardar</button>
+          <button className="btn ghost danger" type="button" onClick={() => { A.deleteTask(t.id); foco.close(); }}>Apagar tarefa</button>
+          <button className="btn ghost" type="button" onClick={() => foco.close()}>Cancelar</button>
+        </div>
+      </form>
     </>
   );
 }

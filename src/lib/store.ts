@@ -10,6 +10,7 @@ export type SheetState =
   | { kind: "project"; id: string; tab: "passos" | "notas" }
   | { kind: "newProject"; name?: string; client?: string; svc?: "site" | "ia" | "pack"; lead?: string | null }
   | { kind: "day"; date: string }
+  | { kind: "schedule"; id: string }
   | { kind: "event"; id?: string; on?: string; date?: string; draft?: Record<string, unknown> }
   | { kind: "payment"; contact?: string | null; back?: boolean }
   | { kind: "recurring"; contact?: string | null; back?: boolean };

@@ -89,12 +89,30 @@ export function uncompleteTask(id: string) {
 }
 
 export function snoozeTask(id: string) {
+  rescheduleTask(id, D(1));
+}
+
+/** Adia (ou antecipa) uma tarefa para um dia à escolha. */
+export function rescheduleTask(id: string, date: string, quiet = false) {
+  const t = S().tasks.find((x) => x.id === id);
+  if (!t || !date) return;
+  const later = date > t.date;
+  t.date = date;
+  if (later) t.snoozedAt = [...(t.snoozedAt ?? []), stamp()];
+  foco.save("tasks", t);
+  if (!quiet) {
+    const base = date === D(1) ? "Passou para amanhã. Sem culpa." : `Passou para ${rel(date)}.`;
+    foco.toast(t.due && date > t.due ? `${base} Atenção: é depois do prazo (${rel(t.due)}).` : base);
+  }
+  done();
+}
+
+export function setTaskDue(id: string, due: string | null) {
   const t = S().tasks.find((x) => x.id === id);
   if (!t) return;
-  t.date = D(1);
-  t.snoozedAt = [...(t.snoozedAt ?? []), stamp()];
+  if (due) t.due = due;
+  else delete t.due;
   foco.save("tasks", t);
-  foco.toast("Passou para amanhã. Sem culpa.");
   done();
 }
 
